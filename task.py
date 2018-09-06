@@ -4,7 +4,7 @@ from physics_sim import PhysicsSim
 class Task():
     """Task (environment) that defines the goal and provides feedback to the agent."""
     def __init__(self, init_pose=None, init_velocities=None, 
-        init_angle_velocities=None, runtime=5., target_pos=None):
+        init_angle_velocities=None, runtime=5., target_pos=None, debug=False):
         """Initialize a Task object.
         Params
         ======
@@ -25,13 +25,32 @@ class Task():
 
         # Goal
         self.target_pos = target_pos if target_pos is not None else np.array([0., 0., 10.]) 
+        
+        self.debug = debug
 
     def get_reward(self):
         """Uses current pose of sim to return reward."""
-        # reward = 1.-.3*(abs(self.sim.pose[:3] - self.target_pos)).sum()
-        position_score = 10.-.3*np.linalg.norm(self.sim.pose[:3] - self.target_pos)**2
-        angular_stationary_score = 10.-.3*np.linalg.norm(self.sim.angular_v)**2
-        reward = (position_score + .1*angular_stationary_score)/10.
+        pose_reward = 10.-3.*(abs(self.sim.pose[:3] - self.target_pos)).sum()
+        equality_reward = 1 - np.average(self.sim.prop_wind_speed)
+        body_velocity_reward_arr = np.absolute(self.sim.find_body_velocity()) # lower velocities should give higher reward
+        body_velocity_reward = 0
+        for x in np.nditer(body_velocity_reward_arr):
+            body_velocity_reward += 1 - x
+            
+        reward = pose_reward + equality_reward + body_velocity_reward
+        
+        if self.debug:
+            print("--- get_reward function ---")            
+            print("pose_reward:" + str(pose_reward))
+            print("equality_reward:" + str(equality_reward))
+            print("body_velocity_reward:" + str(body_velocity_reward_arr))
+            print("body_velocity_reward:" + str(body_velocity_reward))
+            print("reward:" + str(reward))
+            print("---")
+            
+#        distance_to_target = np.linalg.norm(self.target_pos - self.sim.pose[:3])
+#        sum_acceleration = np.linalg.norm(self.sim.linear_accel)
+#        reward = (5. - distance_to_target) * 0.3 - sum_acceleration * 0.05
         return reward
 
     def step(self, rotor_speeds):
@@ -43,6 +62,14 @@ class Task():
             reward += self.get_reward() 
             pose_all.append(self.sim.pose)
         next_state = np.concatenate(pose_all)
+        
+        if self.debug:
+            print("--- step function ---")
+            print("next_state: " + str(next_state))
+            print("reward: " + str(reward))
+            print("done: " + str(done))
+            print("---")
+            
         return next_state, reward, done
 
     def reset(self):

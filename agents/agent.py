@@ -202,12 +202,12 @@ class DDPG():
 
         # Replay memory
         self.buffer_size = 100000
-        self.batch_size = 64
+        self.batch_size = 128
         self.memory = ReplayBuffer(self.buffer_size, self.batch_size)
 
         # Algorithm parameters
         self.gamma = 0.99  # discount factor
-        self.tau = 0.01  # for soft update of target parameters
+        self.tau = 0.001  # for soft update of target parameters
         
         # Score tracker
         self.best_score = -np.inf
