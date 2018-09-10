@@ -30,27 +30,68 @@ class Task():
 
     def get_reward(self):
         """Uses current pose of sim to return reward."""
-        pose_reward = 10.-3.*(abs(self.sim.pose[:3] - self.target_pos)).sum()
-        equality_reward = 1 - np.average(self.sim.prop_wind_speed)
-        body_velocity_reward_arr = np.absolute(self.sim.find_body_velocity()) # lower velocities should give higher reward
-        body_velocity_reward = 0
-        for x in np.nditer(body_velocity_reward_arr):
-            body_velocity_reward += 1 - x
+        
+        def pose_reward(x,h_offset=0.,curve=-0.1,max_score=1.,min_reward=0.):
+            reward = (curve*(max_score/10.)*((x+h_offset)**2.))+max_score
+            reward = min_reward if reward <= min_reward else reward
+            return reward
+        
+        def linear_pose_reward(x,slope,base):
+            return (slope*x) + base
+        
+        x = self.sim.pose[0:1].item()
+        y = self.sim.pose[1:2].item()
+        z = self.sim.pose[2:3].item()
+        
+        #rewards
+        #pose_reward = np.linalg.norm(abs(self.sim.pose[:3] - self.target_pos)).sum() # 0 would be optimal in this case
+        #if self.debug:
+        #    print("pose before: " + str(pose_reward))
+#        pose_reward = np.linalg.norm(-1*(pose_reward ** 2)).item() # penalize higher values more
+        #pose_reward = pose_reward ** 2
+        #if self.debug:
+        #    print("pose **2: " + str(pose_reward))        
+        #pose_reward = pose_reward * -1            
+        #if self.debug:
+        #    print("pose *-1: " + str(pose_reward))        
+#        pose_reward = np.linalg.norm(pose_reward).item()            
+#        if self.debug:
+#            print("pose LINALG: " + str(pose_reward))
             
-        reward = pose_reward + equality_reward + body_velocity_reward
+        #static z reward experiment
+        # z_reward = 10. * z if z > 0 else 0
+        #dynamic z reward experiment
+        # z_reward = -1 * (z ** 2) + self.target_pos[2:3].item() # again 0 would be optimale and penalize odd values
+        #z_reward = z_reward if z > 0 else z * 10
+#        z_reward = 1.5*z
+        x_reward = pose_reward(x,curve=-0.5)
+        y_reward = pose_reward(y,curve=-0.5)
+        z_reward = linear_pose_reward(z,0.4,-3.) if z <= 10 else linear_pose_reward(z,(-1./190.),(1.+(1./19.)))
+        # z_reward = pose_reward(z,curve=-0.001,h_offset=-10.,max_score=1.)
+        # z_reward = 0 if z <= 3. else z_reward
+        # static_z_reward = -5.0 if z == 0. else z/10.
+        
+        #penalties
+        #apply penalty for z
+        #z_penalty = np.linalg.norm(abs(z - (z ** 2)))
+        #z_penalty = -1 * (z_penalty ** 2) + (z ** 2)
+        
+        reward = (z_reward * x_reward) + (z_reward * y_reward) + z_reward # + static_z_reward
         
         if self.debug:
             print("--- get_reward function ---")            
-            print("pose_reward:" + str(pose_reward))
-            print("equality_reward:" + str(equality_reward))
-            print("body_velocity_reward:" + str(body_velocity_reward_arr))
-            print("body_velocity_reward:" + str(body_velocity_reward))
-            print("reward:" + str(reward))
+            print("-- rewards --")
+#            print("pose_reward: " + str(pose_reward))
+            print("x_reward: " + str(x_reward))
+            print("y_reward: " + str(y_reward))
+            print("z_reward: " + str(z_reward))
+#            print("static_z_reward: " + str(static_z_reward))
+            print("-- penalties --")
+#            print("z_penalty: " + str(z_penalty))
+            print("-- -- --")
+            print("final reward:" + str(reward))
             print("---")
             
-#        distance_to_target = np.linalg.norm(self.target_pos - self.sim.pose[:3])
-#        sum_acceleration = np.linalg.norm(self.sim.linear_accel)
-#        reward = (5. - distance_to_target) * 0.3 - sum_acceleration * 0.05
         return reward
 
     def step(self, rotor_speeds):

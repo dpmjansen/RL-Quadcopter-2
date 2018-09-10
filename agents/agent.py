@@ -175,7 +175,7 @@ class OUNoise:
 
 class DDPG():
     """Reinforcement Learning agent that learns using DDPG."""
-    def __init__(self, task):
+    def __init__(self, task,exploration_mu = 0,exploration_theta = 0.15,exploration_sigma = 0.2,gamma = 0.99,tau = 0.001):
         self.task = task
         self.state_size = task.state_size
         self.action_size = task.action_size
